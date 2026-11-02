@@ -11,7 +11,7 @@
 <button id="allow" type="button">Allow</button><button id="deny" type="button">Deny</button></div>
 <script type="module">
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.118.0";
-const cfg = {"url": "(https://mwklaqyhysehmaiczrsw.supabase.co", "anon": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im13a2xhcXloeXNlaG1haWN6cnN3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTM1MzYxNjEsImV4cCI6MjEwOTExMjE2MX0.Ji0fejUU5O4rhJEKb-D-TtYi7QphKlQdnYaa7pg7CEE"};
+const cfg = {"url": "https://mwklaqyhysehmaiczrsw.supabase.co", "anon": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im13a2xhcXloeXNlaG1haWN6cnN3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTM1MzYxNjEsImV4cCI6MjEwOTExMjE2MX0.Ji0fejUU5O4rhJEKb-D-TtYi7QphKlQdnYaa7pg7CEE"};
 const supabase = createClient(cfg.url, cfg.anon, {
   auth: { flowType: "pkce", detectSessionInUrl: true, persistSession: true }
 });
