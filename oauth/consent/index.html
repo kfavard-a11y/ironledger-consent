@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="referrer" content="no-referrer"><title>IronLedger — Connect</title>
+<style>body{font-family:system-ui,sans-serif;max-width:560px;margin:40px auto;padding:0 16px}button{padding:10px 16px;margin:8px 8px 0 0}#details{display:none}#details p{overflow-wrap:anywhere}</style></head>
+<body><h1>IronLedger</h1><p id="status" role="status">Loading authorization request…</p>
+<div id="details"><p><strong>Application:</strong> <span id="client"></span></p>
+<p><strong>Requested scopes:</strong> <span id="scopes"></span></p>
+<p><strong>Redirect destination:</strong> <span id="redirect"></span></p>
+<p>Connecting permits the application to request IronLedger workouts and workout drafts. Only your data is accessible. No workout is created by connecting.</p>
+<button id="allow" type="button">Allow</button><button id="deny" type="button">Deny</button></div>
+<script type="module">
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.118.0";
+const cfg = {"url": "(https://mwklaqyhysehmaiczrsw.supabase.co", "anon": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im13a2xhcXloeXNlaG1haWN6cnN3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTM1MzYxNjEsImV4cCI6MjEwOTExMjE2MX0.Ji0fejUU5O4rhJEKb-D-TtYi7QphKlQdnYaa7pg7CEE"};
+const supabase = createClient(cfg.url, cfg.anon, {
+  auth: { flowType: "pkce", detectSessionInUrl: true, persistSession: true }
+});
+const status = document.getElementById("status");
+const detailsPanel = document.getElementById("details");
+const allow = document.getElementById("allow");
+const deny = document.getElementById("deny");
+const authorizationId = new URLSearchParams(window.location.search).get("authorization_id");
+function fail(message) { status.textContent = message; detailsPanel.style.display = "none"; }
+function safeRedirect(target) {
+  if (typeof target !== "string") throw new Error("Invalid redirect");
+  const dest = new URL(target);
+  if (dest.protocol !== "https:" && dest.protocol !== "http:") throw new Error("Invalid redirect");
+  window.location.assign(dest.href);
+}
+async function decide(approved) {
+  allow.disabled = true; deny.disabled = true;
+  status.textContent = approved ? "Approving…" : "Denying…";
+  try {
+    const outcome = approved
+      ? await supabase.auth.oauth.approveAuthorization(authorizationId)
+      : await supabase.auth.oauth.denyAuthorization(authorizationId);
+    if (outcome.error || !outcome.data?.redirect_url) throw new Error("Authorization failed");
+    safeRedirect(outcome.data.redirect_url);
+  } catch {
+    fail("Could not complete authorization. Please retry from ChatGPT.");
+  }
+}
+async function main() {
+  if (!authorizationId) {
+    fail("No authorization request found. Please start from ChatGPT.");
+    return;
+  }
+  try {
+    const sessionResult = await supabase.auth.getSession();
+    if (sessionResult.error) throw new Error("Session check failed");
+    if (!sessionResult.data.session) {
+      status.textContent = "Sign in with Google to continue.";
+      const button = document.createElement("button");
+      button.type = "button";
+      button.textContent = "Sign in with Google";
+      button.addEventListener("click", async () => {
+        button.disabled = true;
+        const signIn = await supabase.auth.signInWithOAuth({
+          provider: "google",
+          options: { redirectTo: window.location.origin + window.location.pathname + "?authorization_id=" + encodeURIComponent(authorizationId) }
+        });
+        if (signIn.error) { button.disabled = false; fail("Google sign-in could not start."); }
+      });
+      document.body.appendChild(button);
+      return;
+    }
+    const result = await supabase.auth.oauth.getAuthorizationDetails(authorizationId);
+    if (result.error || !result.data) throw new Error("Authorization lookup failed");
+    const details = result.data;
+    // A prior consent can yield a direct OAuth redirect instead of details.
+    if (!("authorization_id" in details)) {
+      safeRedirect(details.redirect_url);
+      return;
+    }
+    document.getElementById("client").textContent = details.client?.name || "Unidentified application";
+    document.getElementById("scopes").textContent = details.scope || "Not specified";
+    document.getElementById("redirect").textContent = details.redirect_uri || "Not specified";
+    status.textContent = "Review access requested by this application.";
+    detailsPanel.style.display = "block";
+    allow.addEventListener("click", () => decide(true), { once: true });
+    deny.addEventListener("click", () => decide(false), { once: true });
+  } catch {
+    fail("Could not load this authorization request. It may have expired; restart from ChatGPT.");
+  }
+}
+main();
+</script></body></html>
